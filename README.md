@@ -1,2 +1,2 @@
-# Data_Science_Projects
-Projects for Data Science
+# Harvard_Artifact_Collections
+Harvard’s Artifacts Collection: ETL, SQL Analytics & Streamlit Showcase
