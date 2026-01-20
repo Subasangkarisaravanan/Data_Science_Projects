@@ -1,0 +1,22 @@
+Region,Gender,Avg_Obesity
+Africa,Both,5.428503375638297
+Africa,Female,6.480076014352031
+Africa,Male,4.337031843945842
+Americas,Both,18.435741559152333
+Americas,Female,19.08200135798526
+Americas,Male,17.688564624692876
+Eastern Mediterranean,Both,15.652988537086777
+Eastern Mediterranean,Female,16.099287230785123
+Eastern Mediterranean,Male,15.315608754028926
+Europe,Both,11.983085448513986
+Europe,Female,11.020746536888112
+Europe,Male,12.843488446722029
+South-East Asia,Both,5.643208038363637
+South-East Asia,Female,5.509331109295455
+South-East Asia,Male,5.757610922863636
+Unknown,Both,9.76404852252066
+Unknown,Female,9.430742995041323
+Unknown,Male,10.027214509917355
+Western Pacific,Both,19.85898924670088
+Western Pacific,Female,18.562692242375366
+Western Pacific,Male,21.03575559530792
