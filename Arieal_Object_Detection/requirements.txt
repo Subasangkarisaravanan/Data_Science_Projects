@@ -1,0 +1,10 @@
+tensorflow==2.15.0
+scikit-learn
+matplotlib
+seaborn
+pillow
+numpy
+pandas
+streamlit
+opencv-python
+ultralytics
