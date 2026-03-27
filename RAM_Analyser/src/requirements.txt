@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+tensorflow
+streamlit
+psutil
+tldextract
+matplotlib
+seaborn
+plotly
+fpdf
+pywin32
