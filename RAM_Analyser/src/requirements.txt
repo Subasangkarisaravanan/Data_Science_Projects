@@ -9,4 +9,3 @@ matplotlib
 seaborn
 plotly
 fpdf
-pywin32
