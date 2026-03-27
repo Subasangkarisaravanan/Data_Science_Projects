@@ -23,17 +23,14 @@ def run_step(step_name, script_path):
     print("------------------------------------------------\n")
 
     try:
-
         subprocess.run(
             [sys.executable, full_path],
             check=True
         )
 
     except subprocess.CalledProcessError as e:
-
-        print("\nERROR OCCURRED IN:", step_name)
+        print("\n❌ ERROR OCCURRED IN:", step_name)
         print(e)
-
         sys.exit(1)
 
 
@@ -68,11 +65,11 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 2 : DATA CLEANING
+# STEP 2 : DATA CLEANING + TIME WINDOW
 # ------------------------------------------------
 
 run_step(
-    "STEP 2 : Data Cleaning",
+    "STEP 2 : Data Cleaning + Time Window",
     "src/prep/clean_history.py"
 )
 
@@ -88,11 +85,11 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 4 : RAM CORRELATION ANALYSIS
+# STEP 4 : RAM CORRELATION (FIXED)
 # ------------------------------------------------
 
 run_step(
-    "STEP 4 : RAM Correlation Analysis",
+    "STEP 4 : RAM Correlation Analysis (Fixed)",
     "src/analytics/ram_correlation.py"
 )
 
@@ -108,11 +105,11 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 6 : SESSION CLUSTERING
+# STEP 6 : SESSION CLUSTERING (WITH LABELS)
 # ------------------------------------------------
 
 run_step(
-    "STEP 6 : Session Clustering",
+    "STEP 6 : Session Clustering + Labeling",
     "src/models/session_clustering.py"
 )
 
@@ -128,35 +125,55 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 8 : RECOMMENDATION ENGINE
+# STEP 8 : LSTM PREDICTION (NEW 🔥)
 # ------------------------------------------------
 
 run_step(
-    "STEP 8 : Recommendation Engine",
+    "STEP 8 : LSTM Next Category Prediction",
+    "src/models/lstm_model.py"
+)
+
+
+# ------------------------------------------------
+# STEP 9 : SOCIAL LOOP DETECTION (NEW 🔥)
+# ------------------------------------------------
+
+run_step(
+    "STEP 9 : Social Loop Detection",
+    "src/analytics/social_loop_detection.py"
+)
+
+
+# ------------------------------------------------
+# STEP 10 : RECOMMENDATION ENGINE
+# ------------------------------------------------
+
+run_step(
+    "STEP 10 : Recommendation Engine",
     "src/analytics/recommendation_engine.py"
 )
 
 
 # ------------------------------------------------
-# STEP 8.5 : BEHAVIOR INSIGHT ENGINE
+# STEP 11 : BEHAVIOR INSIGHTS
 # ------------------------------------------------
 
 run_step(
-    "STEP 8.5 : Behavior Insights",
+    "STEP 11 : Behavior Insights",
     "src/analytics/behavior_insights.py"
 )
 
 
 # ------------------------------------------------
-# STEP 9 : FINAL REPORT GENERATION
+# STEP 12 : FINAL REPORT GENERATION
 # ------------------------------------------------
 
 run_step(
-    "STEP 9 : Final Report Generator",
+    "STEP 12 : Final Report Generator",
     "src/analytics/report_generator.py"
 )
 
 
 print("\n================================================")
-print("PIPELINE EXECUTION COMPLETED SUCCESSFULLY")
+print("✅ PIPELINE EXECUTION COMPLETED SUCCESSFULLY")
 print("================================================\n")
