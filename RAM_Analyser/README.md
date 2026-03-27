@@ -1,108 +1,137 @@
-# RAM Browsing Behaviour Analyzer
+# 🚀 RAM Browsing Behaviour Analyzer
 
-AI system that analyzes browsing history patterns and correlates them with RAM usage to identify productivity behaviour, anomalies and system performance patterns.
+An AI-powered system that analyzes browser activity and correlates it with RAM usage to detect productivity patterns, anomalies, and system performance issues.
 
-## Features
+---
 
-- Browser history extraction from Chrome and Edge
-- RAM usage monitoring
-- URL cleaning and domain categorization
-- Session building and browsing behavior analysis
-- RAM usage correlation with browsing activity
-- Machine learning clustering of browsing sessions
-- Deep learning anomaly detection using autoencoder
-- Recommendation engine for productivity and system optimization
-- Streamlit dashboard visualization
-- Automated analytics plots
-- Automated PDF report generation
+## 🔥 Key Features
 
-## Project Structure
+* 📊 Browser history extraction (Chrome & Edge)
+* 🧠 RAM usage monitoring (real-time logging)
+* 🧹 Data cleaning & preprocessing
+* 🌐 Domain categorization (shopping, entertainment, etc.)
+* ⏱️ Session building & behavioral analysis
+* 📈 RAM vs browsing correlation analysis
+* 🤖 Machine Learning clustering (user behavior segmentation)
+* 🧬 Deep Learning anomaly detection (Autoencoder)
+* 💡 Smart recommendation engine
+* 📊 Interactive Streamlit dashboard (with Plotly visuals)
+* 📑 Automated PDF report generation
+* 📉 Advanced analytics plots
 
-RAM_Analyser
+---
 
-src/
-collect/
-history_extractor.py
-ram_logger.py
-active_tab_tracker.py
+## 🏗️ Project Structure
 
-prep/
-clean_history.py
-session_builder.py
+```
+RAM_Analyser/
+│
+├── src/
+│   ├── app.py                  # Streamlit dashboard
+│   ├── collect/               # Data collection
+│   ├── analytics/             # Insights & reports
+│   ├── models/                # ML & DL models
+│
+├── data/                      # Raw & processed datasets
+├── plots/                     # Generated visualizations
+├── run_pipeline.py            # Full automation script
+├── requirements.txt
+├── README.md
+```
 
-analytics/
-ram_correlation.py
-recommendation_engine.py
-report_generator.py
+---
 
-models/
-session_features.py
-session_clustering.py
-autoencoder_model.py
+## ⚙️ Installation
 
-app.py
+### 1️⃣ Clone the repository
 
-data/
+```bash
+git clone <your-repo-url>
+cd RAM_Analyser
+```
 
-plots/
+### 2️⃣ Install dependencies
 
-run_pipeline.py
+```bash
+pip install -r requirements.txt
+```
 
-## Installation
+---
 
-Install dependencies
+## ▶️ Run Full Pipeline
 
-pip install pandas numpy matplotlib seaborn scikit-learn tensorflow psutil streamlit fpdf pywin32
-
-## Run Pipeline
-
+```bash
 python run_pipeline.py
+```
 
-This will execute:
+This executes:
 
-1 Browser history extraction  
-2 RAM logging  
-3 Data preprocessing  
-4 Session building  
-5 RAM correlation analysis  
-6 Feature engineering  
-7 Clustering  
-8 Deep learning anomaly detection  
-9 Recommendation generation  
+1. Browser history extraction
+2. RAM logging
+3. Data cleaning
+4. Session building
+5. RAM correlation analysis
+6. Feature engineering
+7. Clustering
+8. Anomaly detection (Autoencoder)
+9. Recommendation generation
 
-## Run Dashboard
+---
 
+## 📊 Run Dashboard
+
+```bash
 streamlit run src/app.py
+```
 
-## Output
+---
 
-Datasets generated
+## 📂 Outputs
 
-browsing_history_raw.csv  
-browsing_history_clean.csv  
-browsing_sessions.csv  
-ram_log.csv  
-session_features.csv  
-session_clusters.csv  
-session_anomalies.csv  
+### 📁 Generated Data
 
-Plots generated
+* browsing_history_clean.csv
+* browsing_sessions.csv
+* ram_log.csv
+* session_features.csv
+* session_clusters.csv
+* session_anomalies.csv
 
-RAM vs browsing complexity  
-RAM vs domains  
-Cluster visualization  
+### 📈 Generated Plots
 
-Report
+* RAM vs time
+* RAM vs domains
+* Category-wise RAM usage
+* Cluster visualizations
+* CPU vs RAM correlation
 
-RAM_Analysis_Report.pdf
+### 📑 Report
 
-## Use Cases
+* RAM_Analysis_Report.pdf
 
-- Employee productivity analytics
-- Digital wellbeing monitoring
-- RAM usage optimization
-- Behavioral anomaly detection
+---
 
-## Author
+## 🎯 Use Cases
+
+* Employee productivity tracking
+* Digital wellbeing monitoring
+* System performance optimization
+* Behavioral anomaly detection
+
+---
+
+## 🛠️ Tech Stack
+
+* Python
+* Pandas, NumPy
+* Scikit-learn
+* TensorFlow (Deep Learning)
+* Streamlit (Dashboard)
+* Plotly (Interactive charts)
+* Matplotlib & Seaborn (Visualization)
+
+---
+
+## 👤 Author
 
 RAM Behaviour Analytics Project
