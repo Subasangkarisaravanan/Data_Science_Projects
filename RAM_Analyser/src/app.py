@@ -1,249 +1,258 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import os
-from PIL import Image
 
+# =====================================
+# PAGE CONFIG
+# =====================================
 st.set_page_config(
     page_title="RAM Analyzer Dashboard",
-    layout="wide"
+    layout="wide",
+    page_icon="📊"
 )
 
-st.title("🧠 Time-Based Browsing Pattern Analyzer")
-st.subheader("Deep Learning + RAM Usage Correlation")
+# =====================================
+# CORRECT BASE PATH (FIXED)
+# =====================================
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
-# ------------------------------------------------
-# PATHS
-# ------------------------------------------------
+DATA_PATH = os.path.join(BASE_DIR, "data", "processed", "cleaned_history.csv")
+REPORT_PATH = os.path.join(BASE_DIR, "RAM_Analysis_Report.pdf")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-DATA_DIR = os.path.join(BASE_DIR, "..", "data")
-PLOT_DIR = os.path.join(BASE_DIR, "..", "plots")
-
-features_file = os.path.join(DATA_DIR, "session_features.csv")
-clusters_file = os.path.join(DATA_DIR, "session_clusters.csv")
-anomaly_file = os.path.join(DATA_DIR, "session_anomalies.csv")
-recommend_file = os.path.join(DATA_DIR, "recommendations.txt")
-insight_file = os.path.join(DATA_DIR, "behavior_insights.txt")
-
-# ------------------------------------------------
+# =====================================
 # LOAD DATA
-# ------------------------------------------------
+# =====================================
+@st.cache_data
+def load_data():
+    if not os.path.exists(DATA_PATH):
+        st.error("❌ Cleaned data not found. Run clean_history.py first.")
+        st.stop()
 
-if os.path.exists(features_file):
-    features = pd.read_csv(features_file)
-else:
-    features = None
+    df = pd.read_csv(DATA_PATH)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df
 
-if os.path.exists(clusters_file):
-    clusters = pd.read_csv(clusters_file)
-else:
-    clusters = None
+df_original = load_data()
+df = df_original.copy()
 
-if os.path.exists(anomaly_file):
-    anomalies = pd.read_csv(anomaly_file)
-else:
-    anomalies = None
-
-
-# ------------------------------------------------
+# =====================================
 # SIDEBAR
-# ------------------------------------------------
+# =====================================
+st.sidebar.title("📊 RAM Analyzer")
 
-st.sidebar.title("Navigation")
+# Theme toggle
+theme = st.sidebar.radio("Theme", ["Light", "Dark"])
 
-section = st.sidebar.radio(
-    "Select Section",
-    [
-        "Overview",
-        "RAM Analysis",
-        "Session Clusters",
-        "Anomaly Detection",
-        "Behavior Insights",
-        "Recommendations",
-        "Datasets"
+# Reset button
+if st.sidebar.button("🔄 Reset Filters"):
+    st.session_state.clear()
+    st.rerun()
+
+menu = st.sidebar.radio("Navigation", [
+    "Dashboard",
+    "Category Analysis",
+    "Time Analysis",
+    "AI Insights",
+    "Raw Data"
+])
+
+st.sidebar.divider()
+
+# =====================================
+# FILTERS
+# =====================================
+st.sidebar.subheader("Filters")
+
+search = st.sidebar.text_input("🔍 Search URL")
+date_range = st.sidebar.date_input("📅 Date Range", [])
+
+if search:
+    df = df[df["url"].str.contains(search, case=False, na=False)]
+
+if len(date_range) == 2:
+    start, end = date_range
+    df = df[
+        (df["timestamp"].dt.date >= start) &
+        (df["timestamp"].dt.date <= end)
     ]
+
+# =====================================
+# EMPTY DATA HANDLING
+# =====================================
+if df.empty:
+    st.warning("⚠️ No matching data found")
+
+    if search:
+        st.write(f"🔍 No results for: `{search}`")
+
+    if len(date_range) == 2:
+        st.write(f"📅 No data between {start} and {end}")
+
+    st.info("👉 Try resetting filters")
+
+    st.stop()
+
+# =====================================
+# DOWNLOAD OPTIONS
+# =====================================
+st.sidebar.subheader("📥 Downloads")
+
+# CSV download
+csv = df.to_csv(index=False).encode("utf-8")
+st.sidebar.download_button(
+    label="Download CSV",
+    data=csv,
+    file_name="cleaned_history.csv",
+    mime="text/csv"
 )
 
-# ------------------------------------------------
-# OVERVIEW
-# ------------------------------------------------
-
-if section == "Overview":
-
-    st.header("Project Overview")
-
-    st.write(
-        """
-        This system analyzes browsing behavior and correlates it with RAM usage.
-
-        The pipeline performs:
-        - Browser history extraction
-        - RAM monitoring
-        - Sessionization
-        - Clustering
-        - Deep learning anomaly detection
-        - Recommendation generation
-        """
-    )
-
-    if features is not None:
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric("Total Sessions", len(features))
-
-        col2.metric(
-            "Average RAM Usage",
-            f"{features['avg_ram'].mean():.2f} MB"
+# PDF download
+if os.path.exists(REPORT_PATH):
+    with open(REPORT_PATH, "rb") as f:
+        st.sidebar.download_button(
+            label="Download Report",
+            data=f,
+            file_name="RAM_Analysis_Report.pdf",
+            mime="application/pdf"
         )
+else:
+    st.sidebar.info("Report not generated")
 
-        col3.metric(
-            "Average Session Length",
-            f"{features['session_length'].mean():.2f}"
-        )
+# =====================================
+# THEME STYLE
+# =====================================
+if theme == "Dark":
+    st.markdown("""
+        <style>
+        .stApp {
+            background-color: #0e1117;
+            color: white;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-# ------------------------------------------------
-# RAM ANALYSIS
-# ------------------------------------------------
+# =====================================
+# AI INSIGHTS FUNCTION
+# =====================================
+def generate_insights(df):
 
-elif section == "RAM Analysis":
+    df["hour"] = df["timestamp"].dt.hour
+    peak_hour = df["hour"].value_counts().idxmax()
 
-    st.header("RAM Usage Analytics")
+    if peak_hour < 12:
+        peak_time = f"{peak_hour} AM"
+    elif peak_hour == 12:
+        peak_time = "12 PM"
+    else:
+        peak_time = f"{peak_hour-12} PM"
 
-    plot_files = [
-        "ram_by_category.png",
-        "ram_vs_complexity.png",
-        "ram_vs_pages.png",
-        "ram_vs_domains.png",
-        "ram_heatmap.png"
+    top_category = df["category"].value_counts().idxmax()
+    top_website = df["url"].value_counts().idxmax()
+    top_sites = df["url"].value_counts().head(3).index.tolist()
+
+    heavy_keywords = ["youtube", "netflix", "primevideo", "hotstar"]
+    heavy_sites = set()
+
+    for url in df["url"]:
+        for k in heavy_keywords:
+            if k in str(url).lower():
+                heavy_sites.add(k)
+
+    slow_sites = df["url"].value_counts()
+    slow_sites = slow_sites[slow_sites > 10].index.tolist()[:3]
+
+    insights = [
+        f"Peak usage time: {peak_time}",
+        f"Top category: {top_category}",
+        f"Most visited site: {top_website}",
+        f"Top sites: {', '.join(top_sites)}"
     ]
 
-    for p in plot_files:
+    if heavy_sites:
+        insights.append(f"High RAM usage sites: {', '.join(heavy_sites)}")
 
-        path = os.path.join(PLOT_DIR, p)
+    if slow_sites:
+        insights.append(f"Heavy/slow sites: {', '.join(slow_sites)}")
 
-        if os.path.exists(path):
+    return insights
 
-            st.image(Image.open(path), caption=p)
+# =====================================
+# DASHBOARD
+# =====================================
+if menu == "Dashboard":
 
-# ------------------------------------------------
-# SESSION CLUSTERS
-# ------------------------------------------------
+    st.title("📊 Dashboard Overview")
 
-elif section == "Session Clusters":
+    col1, col2, col3 = st.columns(3)
 
-    st.header("Browsing Session Clusters")
+    col1.metric("Total Records", len(df))
+    col2.metric("Top Category", df["category"].value_counts().idxmax())
+    col3.metric("Unique Sites", df["url"].nunique())
 
-    plot_files = [
-        "cluster_session_length_vs_pages.png",
-        "cluster_ram_efficiency.png",
-        "cluster_pca_visualization.png"
-    ]
+    st.divider()
 
-    for p in plot_files:
+    category_counts = df["category"].value_counts().reset_index()
+    category_counts.columns = ["category", "count"]
 
-        path = os.path.join(PLOT_DIR, p)
+    fig = px.pie(category_counts, names="category", values="count")
+    st.plotly_chart(fig, use_container_width=True)
 
-        if os.path.exists(path):
+# =====================================
+# CATEGORY ANALYSIS
+# =====================================
+elif menu == "Category Analysis":
 
-            st.image(Image.open(path), caption=p)
+    st.title("📊 Category Analysis")
 
-    if clusters is not None:
+    category_counts = df["category"].value_counts().reset_index()
+    category_counts.columns = ["category", "count"]
 
-        st.subheader("Cluster Data")
+    fig = px.bar(category_counts, x="category", y="count", color="category")
+    st.plotly_chart(fig, use_container_width=True)
 
-        st.dataframe(clusters.head(20))
+# =====================================
+# TIME ANALYSIS
+# =====================================
+elif menu == "Time Analysis":
 
-# ------------------------------------------------
-# ANOMALY DETECTION
-# ------------------------------------------------
+    st.title("⏰ Time Analysis")
 
-elif section == "Anomaly Detection":
+    df["date"] = df["timestamp"].dt.date
+    time_data = df.groupby(["date", "category"]).size().reset_index(name="count")
 
-    st.header("Deep Learning Anomaly Detection")
+    fig = px.line(time_data, x="date", y="count", color="category")
+    st.plotly_chart(fig, use_container_width=True)
 
-    if anomalies is not None:
+# =====================================
+# AI INSIGHTS
+# =====================================
+elif menu == "AI Insights":
 
-        anomaly_sessions = anomalies[anomalies["is_anomaly"] == True]
+    st.title("🤖 Smart Insights")
 
-        st.metric("Total Anomalies", len(anomaly_sessions))
+    insights = generate_insights(df)
 
-        st.subheader("Top Anomalous Sessions")
+    for ins in insights:
+        st.success(ins)
 
-        st.dataframe(
-            anomaly_sessions.sort_values(
-                "anomaly_score",
-                ascending=False
-            ).head(20)
-        )
+# =====================================
+# RAW DATA
+# =====================================
+elif menu == "Raw Data":
 
-# ------------------------------------------------
-# BEHAVIOR INSIGHTS
-# ------------------------------------------------
+    st.title("📄 Raw Data")
+    st.dataframe(df.head(100))
 
-elif section == "Behavior Insights":
-
-    st.header("AI Generated Behavioral Insights")
-
-    if os.path.exists(insight_file):
-
-        with open(insight_file) as f:
-
-            lines = f.readlines()
-
-        for l in lines:
-
-            st.write("•", l.strip())
-
-    else:
-
-        st.warning("Behavior insights not found. Run pipeline first.")
-
-# ------------------------------------------------
-# RECOMMENDATIONS
-# ------------------------------------------------
-
-elif section == "Recommendations":
-
-    st.header("System Recommendations")
-
-    if os.path.exists(recommend_file):
-
-        with open(recommend_file) as f:
-
-            recs = f.readlines()
-
-        for r in recs:
-
-            st.write("•", r.strip())
-
-    else:
-
-        st.warning("Recommendations not found. Run pipeline first.")
-
-# ------------------------------------------------
-# DATASETS
-# ------------------------------------------------
-
-elif section == "Datasets":
-
-    st.header("Generated Datasets")
-
-    if features is not None:
-
-        st.subheader("Session Features")
-
-        st.dataframe(features.head(20))
-
-    if clusters is not None:
-
-        st.subheader("Cluster Dataset")
-
-        st.dataframe(clusters.head(20))
-
-    if anomalies is not None:
-
-        st.subheader("Anomaly Dataset")
-
-        st.dataframe(anomalies.head(20))
+# =====================================
+# STYLE
+# =====================================
+st.markdown("""
+    <style>
+        .stMetric {
+            background-color: #f0f2f6;
+            padding: 10px;
+            border-radius: 10px;
+        }
+    </style>
+""", unsafe_allow_html=True)
