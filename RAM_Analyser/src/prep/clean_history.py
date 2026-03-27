@@ -1,168 +1,144 @@
 import pandas as pd
 import os
-import tldextract
 
 print("\n================================================")
-print("STEP 2 : DATA PREPROCESSING")
+print("STEP 1 : CLEAN HISTORY")
 print("================================================\n")
 
-# ------------------------------------------------
-# Project paths
-# ------------------------------------------------
+# -------------------------------------------------
+# Project paths (same logic as Step 0)
+# -------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
-history_file = os.path.join(DATA_DIR, "browsing_history_raw.csv")
-category_file = os.path.join(DATA_DIR, "domain_category_map.csv")
+INPUT_FILE = os.path.join(DATA_DIR, "browsing_history_raw.csv")
+OUTPUT_DIR = os.path.join(DATA_DIR, "processed")
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "cleaned_history.csv")
 
-output_file = os.path.join(DATA_DIR, "browsing_history_clean.csv")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-print("Input file:")
-print(history_file)
-
-# ------------------------------------------------
-# Load browsing history
-# ------------------------------------------------
-
-df = pd.read_csv(history_file)
-
-print("\nRows loaded:", len(df))
-
-# ------------------------------------------------
-# Remove query strings (privacy rule)
-# ------------------------------------------------
-
-df["url"] = df["url"].astype(str).str.split("?").str[0]
-
-# ------------------------------------------------
-# Extract domain
-# ------------------------------------------------
-
-def extract_domain(url):
-    try:
-        ext = tldextract.extract(url)
-        domain = ext.domain + "." + ext.suffix
-        return domain.lower()
-    except:
-        return "unknown"
-
-df["domain"] = df["url"].apply(extract_domain)
-
-print("Domain extraction completed")
-
-# ------------------------------------------------
-# Load domain category mapping
-# ------------------------------------------------
-
-category_map = pd.read_csv(category_file)
-
-category_map["domain"] = category_map["domain"].str.lower()
-
-domain_dict = dict(zip(category_map["domain"], category_map["category"]))
-
-# ------------------------------------------------
-# Map category
-# ------------------------------------------------
-
-def map_category(domain):
-
-    # exact match
-    if domain in domain_dict:
-        return domain_dict[domain]
-
-    # try root domain fallback
-    parts = domain.split(".")
-    if len(parts) > 2:
-        root = ".".join(parts[-2:])
-        if root in domain_dict:
-            return domain_dict[root]
-
-    return "other"
+print("Input file:", INPUT_FILE)
+print("Output file:", OUTPUT_FILE)
 
 
-df["category"] = df["domain"].apply(map_category)
+# -------------------------------------------------
+# CATEGORY FUNCTION
+# -------------------------------------------------
 
-print("Domain → category mapping completed")
+def get_category(url):
+    if not isinstance(url, str):
+        return "Other"
 
-# ------------------------------------------------
-# Timestamp processing
-# ------------------------------------------------
+    url = url.lower()
 
-df["timestamp"] = pd.to_datetime(df["timestamp"])
+    CATEGORY_MAP = {
+        "Entertainment": [
+            "netflix", "hotstar", "primevideo", "amazonprime",
+            "youtube", "instagram", "facebook", "twitter", "snapchat"
+        ],
 
-df["date"] = df["timestamp"].dt.date
-df["hour"] = df["timestamp"].dt.hour
-df["weekday"] = df["timestamp"].dt.day_name()
+        "Shopping": [
+            "amazon", "flipkart", "meesho", "myntra",
+            "zomato", "swiggy", "ajio"
+        ],
 
-print("Time features created")
+        "Learning": [
+            "coursera", "udemy", "geeksforgeeks",
+            "w3schools", "khanacademy", "edx", "byjus", "guvi"
+        ],
 
-# ------------------------------------------------
-# Remove duplicates
-# ------------------------------------------------
+        "Personal": [
+            "gmail", "mail.google", "yahoo",
+            "outlook", "drive.google",
+            "bank", "netbanking", "upi",
+            "paytm", "gpay", "phonepe"
+        ],
 
-before = len(df)
+        "Work": [
+            "slack", "teams", "zoom", "meet.google",
+            "jira", "confluence"
+        ],
 
-df = df.drop_duplicates()
+        "Search": [
+            "google.com/search", "bing.com/search", "yahoo.com/search"
+        ]
+    }
 
-after = len(df)
+    for category, keywords in CATEGORY_MAP.items():
+        for keyword in keywords:
+            if keyword in url:
+                return category
 
-print("Duplicates removed:", before - after)
+    return "Other"
 
-# ------------------------------------------------
-# Top domain analytics
-# ------------------------------------------------
 
-print("\nTop 10 domains:\n")
+# -------------------------------------------------
+# CLEAN FUNCTION
+# -------------------------------------------------
 
-print(df["domain"].value_counts().head(10))
+def clean_history():
 
-# ------------------------------------------------
-# Category analytics
-# ------------------------------------------------
+    print("\n📥 Reading raw data...")
 
-print("\nCategory distribution:\n")
+    if not os.path.exists(INPUT_FILE):
+        print("❌ File not found:", INPUT_FILE)
+        return
 
-print(df["category"].value_counts())
+    df = pd.read_csv(INPUT_FILE)
 
-# ------------------------------------------------
-# Hourly browsing pattern
-# ------------------------------------------------
+    print("Total rows:", len(df))
 
-print("\nHourly browsing distribution:\n")
+    # ------------------------------
+    # BASIC CLEANING
+    # ------------------------------
 
-print(df["hour"].value_counts().sort_index())
+    df.dropna(subset=["timestamp", "url"], inplace=True)
 
-# ------------------------------------------------
-# Daily browsing pattern
-# ------------------------------------------------
+    print("Rows after removing nulls:", len(df))
 
-print("\nWeekday browsing distribution:\n")
+    # Convert timestamp to datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-print(df["weekday"].value_counts())
+    # Remove duplicates
+    df.drop_duplicates(inplace=True)
 
-# ------------------------------------------------
-# Save cleaned dataset
-# ------------------------------------------------
+    print("Rows after removing duplicates:", len(df))
 
-df.to_csv(output_file, index=False)
+    # ------------------------------
+    # ADD CATEGORY
+    # ------------------------------
 
-print("\n================================================")
-print("CLEAN DATASET SAVED")
-print("================================================")
+    print("\n🔍 Categorizing URLs...")
 
-print("Output file:")
-print(output_file)
+    df["category"] = df["url"].apply(get_category)
 
-print("\nFinal rows:", len(df))
+    # ------------------------------
+    # SORT DATA
+    # ------------------------------
 
-print("\nColumns:")
-print(df.columns.tolist())
+    df = df.sort_values("timestamp")
 
-print("\nSample rows:\n")
+    # ------------------------------
+    # SAVE CLEANED DATA
+    # ------------------------------
 
-print(df.head(10))
+    df.to_csv(OUTPUT_FILE, index=False)
 
-print("\n================================================")
-print("STEP 2 COMPLETED")
-print("================================================")
+    print("\n================================================")
+    print("CLEANING COMPLETED")
+    print("================================================")
+
+    print("Saved to:", OUTPUT_FILE)
+    print("Final rows:", len(df))
+
+    print("\nCategory distribution:\n")
+    print(df["category"].value_counts())
+
+
+# -------------------------------------------------
+# MAIN
+# -------------------------------------------------
+
+if __name__ == "__main__":
+    clean_history()
