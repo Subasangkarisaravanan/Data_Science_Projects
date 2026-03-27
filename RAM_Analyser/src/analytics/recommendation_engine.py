@@ -2,157 +2,171 @@ import pandas as pd
 import os
 
 print("\n================================================")
-print("STEP 8 : RECOMMENDATION ENGINE")
+print("STEP 8 : ADVANCED INTELLIGENT RECOMMENDATIONS")
 print("================================================\n")
 
 # ------------------------------------------------
-# Paths
+# PATHS
 # ------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
 features_file = os.path.join(DATA_DIR, "session_features.csv")
-anomaly_file = os.path.join(DATA_DIR, "session_anomalies.csv")
 sessions_file = os.path.join(DATA_DIR, "browsing_sessions.csv")
-
+anomaly_file = os.path.join(DATA_DIR, "session_anomalies.csv")
 output_file = os.path.join(DATA_DIR, "recommendations.txt")
 
-print("Features file:")
-print(features_file)
-
-print("\nAnomaly file:")
-print(anomaly_file)
-
 # ------------------------------------------------
-# Load datasets
+# LOAD DATA
 # ------------------------------------------------
 
 features = pd.read_csv(features_file)
-anomalies = pd.read_csv(anomaly_file)
 sessions = pd.read_csv(sessions_file)
-
-print("\nSessions analyzed:", len(features))
+anomalies = pd.read_csv(anomaly_file)
 
 recommendations = []
 
 # ------------------------------------------------
-# 1️⃣ Anomaly based recommendation
+# 1. ANOMALY ANALYSIS
 # ------------------------------------------------
 
 anomaly_count = anomalies["is_anomaly"].sum()
-
-if anomaly_count > 0:
-    recommendations.append(
-        f"{anomaly_count} unusual browsing sessions detected. Review abnormal activity or long browsing sessions."
-    )
+recommendations.append(f"{anomaly_count} anomalous sessions detected. Review unusual browsing behavior.")
 
 # ------------------------------------------------
-# 2️⃣ High RAM usage
+# 2. LONG SESSIONS
+# ------------------------------------------------
+
+long_sessions = (features["session_length"] > 3600).sum()
+recommendations.append(f"{long_sessions} sessions exceed 1 hour. Consider taking regular breaks.")
+
+# ------------------------------------------------
+# 3. SWITCHING BEHAVIOR
+# ------------------------------------------------
+
+high_switch = (features["domain_switches"] > 10).sum()
+recommendations.append(f"{high_switch} sessions show high tab switching. This may indicate distraction.")
+
+# ------------------------------------------------
+# 4. LEARNING ACTIVITY
+# ------------------------------------------------
+
+learning_ratio = (sessions["category"] == "learning").mean()
+recommendations.append(f"Learning activity is {learning_ratio*100:.1f}% of total browsing.")
+
+if learning_ratio < 0.2:
+    recommendations.append("Learning usage is relatively low. Consider increasing educational content consumption.")
+
+# ------------------------------------------------
+# 5. LATE NIGHT USAGE
+# ------------------------------------------------
+
+late_night = (sessions["hour"] >= 23).sum()
+recommendations.append(f"{late_night} late-night browsing activities detected.")
+
+if late_night > 20:
+    recommendations.append("Frequent late-night browsing may affect sleep quality.")
+
+# ------------------------------------------------
+# 6. PEAK HOUR
+# ------------------------------------------------
+
+peak_hour = sessions["hour"].value_counts().idxmax()
+recommendations.append(f"Your peak browsing hour is {peak_hour}:00. Use this time for focused work.")
+
+# ------------------------------------------------
+# 7. RAM USAGE
 # ------------------------------------------------
 
 avg_ram = features["avg_ram"].mean()
-
-if avg_ram > 7000:
-    recommendations.append(
-        "High RAM usage detected during browsing sessions. Consider reducing open tabs or disabling heavy browser extensions."
-    )
+recommendations.append(f"Average RAM usage per session is {avg_ram:.0f} MB.")
 
 # ------------------------------------------------
-# 3️⃣ Long browsing sessions
+# 8. SHORT SESSIONS
 # ------------------------------------------------
 
-long_sessions = features[features["session_length"] > 3600]
-
-if len(long_sessions) > 0:
-    recommendations.append(
-        "Several browsing sessions exceed 1 hour. Consider taking breaks to improve productivity and reduce fatigue."
-    )
+short_sessions = (features["session_length"] < 60).sum()
+recommendations.append(f"{short_sessions} very short sessions detected, indicating possible distractions.")
 
 # ------------------------------------------------
-# 4️⃣ High tab switching
+# 9. HIGH INTENSITY
 # ------------------------------------------------
 
-high_switch = features[features["domain_switches"] > 10]
-
-if len(high_switch) > 0:
-    recommendations.append(
-        "Frequent switching between websites detected. This may indicate multitasking or distraction."
-    )
+high_intensity = (features["session_intensity"] > features["session_intensity"].mean()).sum()
+recommendations.append(f"{high_intensity} high intensity sessions detected.")
 
 # ------------------------------------------------
-# 5️⃣ Late night browsing
+# 10. TOP WEBSITES
 # ------------------------------------------------
 
-late_night = sessions[sessions["hour"] >= 23]
-
-if len(late_night) > 0:
-    recommendations.append(
-        "Late-night browsing activity detected. Reducing screen time before sleep can improve digital wellbeing."
-    )
+top_sites = sessions["domain"].value_counts().head(5)
+recommendations.append("Most visited websites: " + ", ".join(top_sites.index))
 
 # ------------------------------------------------
-# 6️⃣ Productivity window suggestion
+# 11. CATEGORY DOMINANCE
 # ------------------------------------------------
 
-hour_counts = sessions["hour"].value_counts()
-
-peak_hour = hour_counts.idxmax()
-
-recommendations.append(
-    f"Your most active browsing hour is around {peak_hour}:00. Consider scheduling focused work sessions during this time."
-)
+top_category = sessions["category"].value_counts().idxmax()
+recommendations.append(f"Most frequently used category is '{top_category}'.")
 
 # ------------------------------------------------
-# 7️⃣ Learning vs distraction balance
+# 12. SOCIAL LOOP
 # ------------------------------------------------
 
-category_counts = sessions["category"].value_counts()
+social_file = os.path.join(DATA_DIR, "social_loops.csv")
 
-if "learning" in category_counts:
-
-    learning_ratio = category_counts["learning"] / len(sessions)
-
-    if learning_ratio < 0.3:
-        recommendations.append(
-            "Learning activity appears relatively low. Consider allocating more time for educational browsing."
-        )
+if os.path.exists(social_file):
+    social = pd.read_csv(social_file)
+    if len(social) > 0:
+        recommendations.append(f"{len(social)} social loop sessions detected. Consider reducing social media usage.")
 
 # ------------------------------------------------
-# 8️⃣ RAM efficiency recommendation
+# 13. HIGH RAM SITES
 # ------------------------------------------------
 
-ram_per_page = features["ram_per_page"].mean()
+ram_file = os.path.join(DATA_DIR, "high_ram_sites.csv")
 
-if ram_per_page > 1000:
-    recommendations.append(
-        "High RAM usage per page detected. Websites with heavy media or scripts may be affecting performance."
-    )
+if os.path.exists(ram_file):
+    ram_df = pd.read_csv(ram_file)
+    top_ram_sites = ram_df.iloc[:, 0].head(3).tolist()
+    recommendations.append("High RAM consuming sites include: " + ", ".join(top_ram_sites))
 
 # ------------------------------------------------
-# Print recommendations
+# 14. SLOW SITES
+# ------------------------------------------------
+
+slow_file = os.path.join(DATA_DIR, "slow_sites.csv")
+
+if os.path.exists(slow_file):
+    slow_df = pd.read_csv(slow_file)
+    slow_sites = slow_df.iloc[:, 0].head(3).tolist()
+    recommendations.append("Potential slow or heavy sites: " + ", ".join(slow_sites))
+
+# ------------------------------------------------
+# 15. GENERAL PRODUCTIVITY
+# ------------------------------------------------
+
+recommendations.append("Consider organizing browsing sessions into focused time blocks for better productivity.")
+
+# ------------------------------------------------
+# SAVE (UTF-8 FIX 🔥)
+# ------------------------------------------------
+
+with open(output_file, "w", encoding="utf-8") as f:
+    for i, rec in enumerate(recommendations, 1):
+        f.write(f"{i}. {rec}\n")
+
+# ------------------------------------------------
+# PRINT OUTPUT
 # ------------------------------------------------
 
 print("\nGenerated Recommendations:\n")
 
-for i, rec in enumerate(recommendations, 1):
-    print(f"{i}. {rec}")
-
-# ------------------------------------------------
-# Save recommendations
-# ------------------------------------------------
-
-with open(output_file, "w") as f:
-    for i, rec in enumerate(recommendations, 1):
-        f.write(f"{i}. {rec}\n")
+for r in recommendations:
+    print("-", r)
 
 print("\n================================================")
-print("RECOMMENDATIONS SAVED")
+print("RECOMMENDATIONS SAVED SUCCESSFULLY")
 print("================================================")
-
-print("Output file:")
-print(output_file)
-
-print("\n================================================")
-print("STEP 8 COMPLETED")
-print("================================================")
+print("Output file:", output_file)
