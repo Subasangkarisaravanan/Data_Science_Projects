@@ -1,5 +1,5 @@
-Peak browsing hour is around 4:00.
+Peak browsing hour is around 15:00.
 Most visited category is search.
-Learning related browsing is 25.8% of activity.
-8 sessions longer than 1 hour detected.
-22 anomalous browsing sessions detected.
+Learning related browsing is 13.7% of activity.
+0 sessions longer than 1 hour detected.
+1 anomalous browsing sessions detected.

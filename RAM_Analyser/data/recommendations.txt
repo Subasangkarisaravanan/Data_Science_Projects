@@ -1,8 +1,15 @@
-1. 22 unusual browsing sessions detected. Review abnormal activity or long browsing sessions.
-2. High RAM usage detected during browsing sessions. Consider reducing open tabs or disabling heavy browser extensions.
-3. Several browsing sessions exceed 1 hour. Consider taking breaks to improve productivity and reduce fatigue.
-4. Frequent switching between websites detected. This may indicate multitasking or distraction.
-5. Late-night browsing activity detected. Reducing screen time before sleep can improve digital wellbeing.
-6. Your most active browsing hour is around 4:00. Consider scheduling focused work sessions during this time.
-7. Learning activity appears relatively low. Consider allocating more time for educational browsing.
-8. High RAM usage per page detected. Websites with heavy media or scripts may be affecting performance.
+1. 1 anomalous sessions detected. Review unusual browsing behavior.
+2. 0 sessions exceed 1 hour. Consider taking regular breaks.
+3. 1 sessions show high tab switching. This may indicate distraction.
+4. Learning activity is 13.7% of total browsing.
+5. Learning usage is relatively low. Consider increasing educational content consumption.
+6. 0 late-night browsing activities detected.
+7. Your peak browsing hour is 15:00. Use this time for focused work.
+8. Average RAM usage per session is 5870 MB.
+9. 8 very short sessions detected, indicating possible distractions.
+10. 4 high intensity sessions detected.
+11. Most visited websites: google.com, bing.com, w3schools.com, chatgpt.com, youtube.com
+12. Most frequently used category is 'search'.
+13. High RAM consuming sites include: bing.com, chatgpt.com, forms.gle
+14. Potential slow or heavy sites: nptel.ac.in, google.co.in, swayam2.ac.in
+15. Consider organizing browsing sessions into focused time blocks for better productivity.
