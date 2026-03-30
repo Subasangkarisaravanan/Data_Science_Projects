@@ -65,12 +65,22 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 2 : DATA CLEANING + TIME WINDOW
+# STEP 2 : DATA CLEANING (FIXED PATH)
 # ------------------------------------------------
 
 run_step(
-    "STEP 2 : Data Cleaning + Time Window",
+    "STEP 2 : Data Cleaning",
     "src/prep/clean_history.py"
+)
+
+
+# ------------------------------------------------
+# STEP 2.5 : MERGE DATA (IMPORTANT FIX 🔥)
+# ------------------------------------------------
+
+run_step(
+    "STEP 2.5 : Merge RAM + Browsing Data",
+    "src/data_processing/merge_data.py"
 )
 
 
@@ -85,11 +95,11 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 4 : RAM CORRELATION (FIXED)
+# STEP 4 : RAM CORRELATION
 # ------------------------------------------------
 
 run_step(
-    "STEP 4 : RAM Correlation Analysis (Fixed)",
+    "STEP 4 : RAM Correlation Analysis",
     "src/analytics/ram_correlation.py"
 )
 
@@ -105,7 +115,7 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 6 : SESSION CLUSTERING (WITH LABELS)
+# STEP 6 : SESSION CLUSTERING
 # ------------------------------------------------
 
 run_step(
@@ -125,7 +135,7 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 8 : LSTM PREDICTION (NEW 🔥)
+# STEP 8 : LSTM PREDICTION
 # ------------------------------------------------
 
 run_step(
@@ -135,7 +145,7 @@ run_step(
 
 
 # ------------------------------------------------
-# STEP 9 : SOCIAL LOOP DETECTION (NEW 🔥)
+# STEP 9 : SOCIAL LOOP DETECTION
 # ------------------------------------------------
 
 run_step(
