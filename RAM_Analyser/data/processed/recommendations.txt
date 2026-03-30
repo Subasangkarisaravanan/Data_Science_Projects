@@ -1,0 +1,15 @@
+1. 35 anomalous sessions detected.
+2. High anomaly count → Review unusual or inefficient browsing behavior.
+3. 20 sessions exceed 1 hour.
+4. Take regular breaks to improve productivity and reduce fatigue.
+5. 94 sessions show high tab switching.
+6. High switching may indicate distraction. Try focused browsing sessions.
+7. Learning activity: 0.0%
+8. Increase learning-related browsing for skill development.
+9. Average RAM usage: 6982 MB
+10. High RAM usage detected. Consider closing unused tabs.
+11. 295 short sessions detected.
+12. 179 high-intensity sessions detected.
+13. Top sites: www.bing.com, accounts.google.com, www.instagram.com, www.google.com, docs.google.com
+14. Dominant category: other
+15. Organize browsing into focused sessions for better productivity.

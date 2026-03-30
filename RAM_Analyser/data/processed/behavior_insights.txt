@@ -1,0 +1,11 @@
+📊 Most visited category is 'other'.
+📚 Learning activity: 0.0%.
+⚠️ Learning usage is low — consider increasing educational content.
+⏳ 20 sessions longer than 1 hour detected.
+⚠️ Frequent long sessions — consider taking breaks.
+⚡ 295 very short sessions detected.
+🚨 35 anomalous sessions detected.
+⚠️ High anomaly rate — unusual browsing behavior detected.
+💻 Average RAM usage per session: 6982 MB.
+🔥 179 high-intensity sessions detected.
+💡 Organizing browsing into focused time blocks can improve productivity.
