@@ -3,6 +3,7 @@ import pandas as pd
 import time
 import os
 from datetime import datetime
+from src.config.paths import RAM_LOG
 
 print("\n================================================")
 print("STEP 1 : RAM LOGGER")
@@ -17,13 +18,13 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-output_file = os.path.join(DATA_DIR, "ram_log.csv")
+OUTPUT_FILE = RAM_LOG
 
 print("Data folder:")
 print(DATA_DIR)
 
 print("\nOutput file:")
-print(output_file)
+print(OUTPUT_FILE)
 
 # ------------------------------------------------
 # Logging parameters
@@ -99,7 +100,7 @@ for i in range(RECORDS):
 
 df = pd.DataFrame(rows)
 
-df.to_csv(output_file, index=False)
+df.to_csv(OUTPUT_FILE, index=False)
 
 print("\n================================================")
 print("RAM LOG DATASET SAVED")

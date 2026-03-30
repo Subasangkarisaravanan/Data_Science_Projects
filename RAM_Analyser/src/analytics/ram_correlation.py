@@ -3,192 +3,193 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Fix for Windows plot display
-import matplotlib
-matplotlib.use('TkAgg')
+from src.config.paths import SESSION_HISTORY
 
 print("\n================================================")
 print("STEP 4 : ADVANCED RAM CORRELATION ANALYSIS")
 print("================================================\n")
 
 # ------------------------------------------------
-# PATHS
+# Load Data
 # ------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-PLOT_DIR = os.path.join(BASE_DIR, "plots")
+if not os.path.exists(SESSION_HISTORY):
+    print("❌ File not found:", SESSION_HISTORY)
+    exit()
 
+browse = pd.read_csv(SESSION_HISTORY)
+
+if browse.empty:
+    print("⚠️ No data available")
+    exit()
+
+print(f"📊 Rows loaded: {len(browse)}")
+
+# ------------------------------------------------
+# Convert timestamp
+# ------------------------------------------------
+
+browse["timestamp"] = pd.to_datetime(browse["timestamp"], errors="coerce")
+browse.dropna(subset=["timestamp"], inplace=True)
+
+browse["hour"] = browse["timestamp"].dt.hour
+
+# ------------------------------------------------
+# Plot folder
+# ------------------------------------------------
+
+PLOT_DIR = os.path.join(os.path.dirname(SESSION_HISTORY), "plots")
 os.makedirs(PLOT_DIR, exist_ok=True)
 
-browse = pd.read_csv(os.path.join(DATA_DIR, "browsing_sessions.csv"))
-ram = pd.read_csv(os.path.join(DATA_DIR, "ram_log.csv"))
+sns.set(style="whitegrid")
 
-browse["timestamp"] = pd.to_datetime(browse["timestamp"])
-ram["timestamp"] = pd.to_datetime(ram["timestamp"])
+# =================================================
+# 📊 SESSION SUMMARY (PRINT)
+# =================================================
 
-print("Browsing rows:", len(browse))
-print("RAM rows:", len(ram))
+print("\n📊 SESSION SUMMARY:\n")
+print(browse[[
+    "session_id",
+    "session_duration",
+    "pages_visited",
+    "session_complexity",
+    "engagement_level",
+    "dominant_category"
+]].head(10))
 
-# ------------------------------------------------
-# SESSION LEVEL RAM
-# ------------------------------------------------
+# =================================================
+# 📊 CATEGORY ANALYSIS (PRINT)
+# =================================================
 
-session_ram = []
-
-for sid, group in browse.groupby("session_id"):
-
-    start = group["timestamp"].min()
-
-    nearest = ram.iloc[(ram["timestamp"] - start).abs().argsort()[:1]]
-
-    avg_ram = nearest["ram_used_mb"].values[0]
-
-    for _, row in group.iterrows():
-        r = row.to_dict()
-        r["ram_used_mb"] = avg_ram
-        session_ram.append(r)
-
-merged = pd.DataFrame(session_ram)
-
-merged.to_csv(os.path.join(DATA_DIR, "ram_browsing_merged.csv"), index=False)
-
-# ------------------------------------------------
-# ROW LEVEL (FOR RICH VISUALS)
-# ------------------------------------------------
-
-row_level = pd.merge_asof(
-    browse.sort_values("timestamp"),
-    ram.sort_values("timestamp"),
-    on="timestamp",
-    direction="nearest"
+category_analysis = browse.groupby("category").agg(
+    total_visits=("url", "count"),
+    avg_duration=("session_duration", "mean"),
+    avg_pages=("pages_visited", "mean")
 )
 
-row_level = row_level.dropna(subset=["ram_used_mb"])
+print("\n📊 CATEGORY ANALYSIS:\n")
+print(category_analysis.sort_values("total_visits", ascending=False))
 
-print("Row-level rows:", len(row_level))
+# =================================================
+# 📊 HOURLY ANALYSIS (PRINT)
+# =================================================
 
-# ------------------------------------------------
-# PLOT FUNCTION
-# ------------------------------------------------
+hourly_analysis = browse.groupby("hour").agg(
+    visits=("url", "count"),
+    avg_complexity=("session_complexity", "mean")
+)
 
-sns.set_style("whitegrid")
+print("\n⏰ HOURLY ACTIVITY:\n")
+print(hourly_analysis)
 
-def plot_save_show(name):
-    path = os.path.join(PLOT_DIR, name)
-    plt.tight_layout()
-    plt.savefig(path)
-    print("Saved:", path)
-    plt.show()
-    plt.close()
+# =================================================
+# 🌐 TOP DOMAINS (PRINT)
+# =================================================
 
-# ------------------------------------------------
-# 1. RAM BY CATEGORY
-# ------------------------------------------------
+top_domains = browse["domain"].value_counts().head(10)
 
-plt.figure(figsize=(10,5))
-merged.groupby("dominant_category")["ram_used_mb"].mean().plot(kind="bar")
-plt.title("RAM Usage by Category")
-plot_save_show("ram_by_category.png")
+print("\n🌐 TOP 10 DOMAINS:\n")
+print(top_domains)
 
-# ------------------------------------------------
-# 2. RAM vs COMPLEXITY
-# ------------------------------------------------
+# =================================================
+# 🔥 ENGAGEMENT DISTRIBUTION (PRINT)
+# =================================================
 
-plt.figure(figsize=(10,5))
-plt.scatter(merged["session_complexity"], merged["ram_used_mb"])
-plt.title("Session Complexity vs RAM")
-plot_save_show("ram_vs_complexity.png")
+engagement_dist = browse["engagement_level"].value_counts()
 
-# ------------------------------------------------
-# 3. RAM vs PAGES
-# ------------------------------------------------
+print("\n🔥 ENGAGEMENT DISTRIBUTION:\n")
+print(engagement_dist)
 
-plt.figure(figsize=(10,5))
-plt.scatter(merged["pages_visited"], merged["ram_used_mb"])
-plt.title("Pages vs RAM")
-plot_save_show("ram_vs_pages.png")
+# =================================================
+# 📈 PLOTS SECTION
+# =================================================
 
-# ------------------------------------------------
-# 4. RAM vs DOMAINS
-# ------------------------------------------------
+# 1️⃣ Session Duration
+plt.figure(figsize=(8,5))
+sns.histplot(browse["session_duration"], bins=40, kde=True, color="skyblue")
+plt.axvline(browse["session_duration"].mean(), color="red", linestyle="--")
+plt.title("Session Duration Distribution")
+plt.savefig(os.path.join(PLOT_DIR, "session_duration.png"))
+plt.show()
 
-plt.figure(figsize=(10,5))
-plt.scatter(merged["unique_domains"], merged["ram_used_mb"])
-plt.title("Domains vs RAM")
-plot_save_show("ram_vs_domains.png")
+# 2️⃣ Category Distribution
+plt.figure(figsize=(8,5))
+sns.countplot(data=browse, x="category", palette="Set2")
+plt.title("Category Distribution")
+plt.xticks(rotation=30)
+plt.savefig(os.path.join(PLOT_DIR, "category_distribution.png"))
+plt.show()
 
-# ------------------------------------------------
-# 5. RAM OVER TIME
-# ------------------------------------------------
+# 3️⃣ Hourly Activity
+hourly = browse.groupby("hour")["url"].count()
 
 plt.figure(figsize=(10,5))
-plt.plot(row_level["timestamp"], row_level["ram_used_mb"])
-plt.title("RAM Usage Over Time")
-plot_save_show("ram_over_time.png")
+sns.lineplot(x=hourly.index, y=hourly.values, marker="o", color="purple")
+plt.title("Hourly Activity")
+plt.savefig(os.path.join(PLOT_DIR, "hourly_activity.png"))
+plt.show()
 
-# ------------------------------------------------
-# 6. RAM DISTRIBUTION
-# ------------------------------------------------
-
-plt.figure(figsize=(10,5))
-sns.histplot(row_level["ram_used_mb"], bins=30)
-plt.title("RAM Distribution")
-plot_save_show("ram_distribution.png")
-
-# ------------------------------------------------
-# 7. RAM VS DOMAIN SWITCH
-# ------------------------------------------------
-
-plt.figure(figsize=(10,5))
-plt.scatter(row_level["domain_switch"], row_level["ram_used_mb"])
-plt.title("Domain Switch vs RAM")
-plot_save_show("ram_vs_switch.png")
-
-# ------------------------------------------------
-# 8. CATEGORY BOXPLOT
-# ------------------------------------------------
-
-plt.figure(figsize=(10,5))
-sns.boxplot(x="category", y="ram_used_mb", data=row_level)
-plt.xticks(rotation=45)
-plt.title("RAM by Category Distribution")
-plot_save_show("ram_category_boxplot.png")
-
-# ------------------------------------------------
-# 9. TOP DOMAINS
-# ------------------------------------------------
-
-top_domains = row_level["domain"].value_counts().head(10)
-
-plt.figure(figsize=(10,5))
-sns.barplot(x=top_domains.index, y=top_domains.values)
-plt.xticks(rotation=45)
+# 4️⃣ Top Domains
+plt.figure(figsize=(8,6))
+sns.barplot(x=top_domains.values, y=top_domains.index, palette="coolwarm")
 plt.title("Top Domains")
-plot_save_show("top_domains.png")
+plt.savefig(os.path.join(PLOT_DIR, "top_domains.png"))
+plt.show()
 
-# ------------------------------------------------
-# 10. RAM vs CPU (if exists)
-# ------------------------------------------------
+# 5️⃣ Engagement
+plt.figure(figsize=(6,4))
+sns.countplot(data=browse, x="engagement_level", palette="viridis")
+plt.title("Engagement Levels")
+plt.savefig(os.path.join(PLOT_DIR, "engagement.png"))
+plt.show()
 
-if "cpu_percent" in row_level.columns:
-    plt.figure(figsize=(10,5))
-    plt.scatter(row_level["cpu_percent"], row_level["ram_used_mb"])
-    plt.title("CPU vs RAM")
-    plot_save_show("cpu_vs_ram.png")
+# 6️⃣ Complexity vs Duration
+plt.figure(figsize=(8,5))
+sns.scatterplot(
+    data=browse,
+    x="session_duration",
+    y="session_complexity",
+    hue="engagement_level",
+    palette="Set1"
+)
+plt.title("Complexity vs Duration")
+plt.savefig(os.path.join(PLOT_DIR, "complexity_vs_duration.png"))
+plt.show()
 
-# ------------------------------------------------
-# SAVE ANALYTICS FILES
-# ------------------------------------------------
+# 7️⃣ Category vs Duration
+cat_dur = browse.groupby("category")["session_duration"].mean()
 
-# High RAM sites
-merged.groupby("domain")["ram_used_mb"].mean().sort_values(ascending=False)\
-.head(10).to_csv(os.path.join(DATA_DIR, "high_ram_sites.csv"))
+plt.figure(figsize=(8,5))
+sns.barplot(x=cat_dur.index, y=cat_dur.values, palette="magma")
+plt.title("Avg Duration by Category")
+plt.xticks(rotation=30)
+plt.savefig(os.path.join(PLOT_DIR, "category_duration.png"))
+plt.show()
 
-# Slow sites
-merged.groupby("domain")["session_complexity"].mean().sort_values(ascending=False)\
-.head(10).to_csv(os.path.join(DATA_DIR, "slow_sites.csv"))
+# 8️⃣ Heatmap
+heatmap_data = browse.pivot_table(
+    index="hour",
+    columns="category",
+    values="url",
+    aggfunc="count",
+    fill_value=0
+)
+
+plt.figure(figsize=(10,6))
+sns.heatmap(heatmap_data, cmap="YlGnBu", annot=True, fmt="d")
+plt.title("Hourly Activity Heatmap")
+plt.savefig(os.path.join(PLOT_DIR, "heatmap.png"))
+plt.show()
+
+# =================================================
+# FINAL SUMMARY PRINT
+# =================================================
 
 print("\n================================================")
-print("ALL ANALYSIS GRAPHS GENERATED SUCCESSFULLY")
+print("✅ ANALYSIS COMPLETED SUCCESSFULLY")
 print("================================================")
+
+print("📁 Plots saved in:", PLOT_DIR)
+print("📊 Total sessions:", browse["session_id"].nunique())
+print("📊 Avg session duration:", round(browse["session_duration"].mean(), 2), "seconds")
+print("🔥 Most common category:", browse["category"].mode()[0])

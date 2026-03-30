@@ -4,6 +4,8 @@ import os
 import shutil
 from datetime import datetime, timedelta
 import getpass
+from src.config.paths import RAW_HISTORY
+
 
 print("\n================================================")
 print("STEP 0 : BROWSER HISTORY EXTRACTION")
@@ -18,7 +20,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-OUTPUT_FILE = os.path.join(DATA_DIR, "browsing_history_raw.csv")
+OUTPUT_FILE = RAW_HISTORY
 
 print("Project base directory:")
 print(BASE_DIR)

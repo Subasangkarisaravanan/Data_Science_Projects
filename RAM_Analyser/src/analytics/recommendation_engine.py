@@ -1,157 +1,180 @@
 import pandas as pd
 import os
 
+from src.config.paths import DATA_DIR, SESSION_HISTORY
+
 print("\n================================================")
 print("STEP 8 : ADVANCED INTELLIGENT RECOMMENDATIONS")
 print("================================================\n")
 
 # ------------------------------------------------
-# PATHS
+# PATHS (FIXED)
 # ------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+features_file = os.path.join(DATA_DIR, "processed", "session_features.csv")
+sessions_file = SESSION_HISTORY
+anomaly_file = os.path.join(DATA_DIR, "processed", "session_anomalies.csv")
+output_file = os.path.join(DATA_DIR, "processed", "recommendations.txt")
 
-features_file = os.path.join(DATA_DIR, "session_features.csv")
-sessions_file = os.path.join(DATA_DIR, "browsing_sessions.csv")
-anomaly_file = os.path.join(DATA_DIR, "session_anomalies.csv")
-output_file = os.path.join(DATA_DIR, "recommendations.txt")
+print("📥 Loading files...")
 
 # ------------------------------------------------
-# LOAD DATA
+# LOAD DATA (SAFE)
 # ------------------------------------------------
 
-features = pd.read_csv(features_file)
-sessions = pd.read_csv(sessions_file)
-anomalies = pd.read_csv(anomaly_file)
+def safe_read(path, name):
+    if not os.path.exists(path):
+        print(f"⚠️ {name} not found:", path)
+        return pd.DataFrame()
+    df = pd.read_csv(path)
+    print(f"✅ {name} loaded:", len(df))
+    return df
+
+features = safe_read(features_file, "Features")
+sessions = safe_read(sessions_file, "Sessions")
+anomalies = safe_read(anomaly_file, "Anomalies")
 
 recommendations = []
+
+# ------------------------------------------------
+# FIX CATEGORY COLUMN
+# ------------------------------------------------
+
+if "category" not in sessions.columns and "dominant_category" in sessions.columns:
+    sessions["category"] = sessions["dominant_category"]
+
+if "category" in sessions.columns:
+    sessions["category"] = sessions["category"].astype(str).str.lower()
 
 # ------------------------------------------------
 # 1. ANOMALY ANALYSIS
 # ------------------------------------------------
 
-anomaly_count = anomalies["is_anomaly"].sum()
-recommendations.append(f"{anomaly_count} anomalous sessions detected. Review unusual browsing behavior.")
+if "is_anomaly" in anomalies.columns:
+    anomaly_count = anomalies["is_anomaly"].sum()
+    recommendations.append(f"{anomaly_count} anomalous sessions detected.")
+
+    if anomaly_count > 10:
+        recommendations.append("High anomaly count → Review unusual or inefficient browsing behavior.")
 
 # ------------------------------------------------
 # 2. LONG SESSIONS
 # ------------------------------------------------
 
-long_sessions = (features["session_length"] > 3600).sum()
-recommendations.append(f"{long_sessions} sessions exceed 1 hour. Consider taking regular breaks.")
+if "session_length" in features.columns:
+    long_sessions = (features["session_length"] > 3600).sum()
+    recommendations.append(f"{long_sessions} sessions exceed 1 hour.")
+
+    if long_sessions > 5:
+        recommendations.append("Take regular breaks to improve productivity and reduce fatigue.")
 
 # ------------------------------------------------
 # 3. SWITCHING BEHAVIOR
 # ------------------------------------------------
 
-high_switch = (features["domain_switches"] > 10).sum()
-recommendations.append(f"{high_switch} sessions show high tab switching. This may indicate distraction.")
+if "domain_switches" in features.columns:
+    high_switch = (features["domain_switches"] > 10).sum()
+    recommendations.append(f"{high_switch} sessions show high tab switching.")
+
+    if high_switch > 10:
+        recommendations.append("High switching may indicate distraction. Try focused browsing sessions.")
 
 # ------------------------------------------------
 # 4. LEARNING ACTIVITY
 # ------------------------------------------------
 
-learning_ratio = (sessions["category"] == "learning").mean()
-recommendations.append(f"Learning activity is {learning_ratio*100:.1f}% of total browsing.")
+if "category" in sessions.columns:
+    learning_ratio = (sessions["category"] == "learning").mean()
+    recommendations.append(f"Learning activity: {learning_ratio*100:.1f}%")
 
-if learning_ratio < 0.2:
-    recommendations.append("Learning usage is relatively low. Consider increasing educational content consumption.")
+    if learning_ratio < 0.2:
+        recommendations.append("Increase learning-related browsing for skill development.")
 
 # ------------------------------------------------
 # 5. LATE NIGHT USAGE
 # ------------------------------------------------
 
-late_night = (sessions["hour"] >= 23).sum()
-recommendations.append(f"{late_night} late-night browsing activities detected.")
+if "hour" in sessions.columns:
+    late_night = (sessions["hour"] >= 23).sum()
+    recommendations.append(f"{late_night} late-night sessions detected.")
 
-if late_night > 20:
-    recommendations.append("Frequent late-night browsing may affect sleep quality.")
+    if late_night > 20:
+        recommendations.append("Reduce late-night browsing to improve sleep quality.")
 
 # ------------------------------------------------
 # 6. PEAK HOUR
 # ------------------------------------------------
 
-peak_hour = sessions["hour"].value_counts().idxmax()
-recommendations.append(f"Your peak browsing hour is {peak_hour}:00. Use this time for focused work.")
+if "hour" in sessions.columns and not sessions.empty:
+    peak_hour = sessions["hour"].value_counts().idxmax()
+    recommendations.append(f"Peak browsing hour: {peak_hour}:00 → Use for focused work.")
 
 # ------------------------------------------------
 # 7. RAM USAGE
 # ------------------------------------------------
 
-avg_ram = features["avg_ram"].mean()
-recommendations.append(f"Average RAM usage per session is {avg_ram:.0f} MB.")
+if "avg_ram" in features.columns:
+    avg_ram = features["avg_ram"].mean()
+    recommendations.append(f"Average RAM usage: {avg_ram:.0f} MB")
+
+    if avg_ram > 2000:
+        recommendations.append("High RAM usage detected. Consider closing unused tabs.")
 
 # ------------------------------------------------
 # 8. SHORT SESSIONS
 # ------------------------------------------------
 
-short_sessions = (features["session_length"] < 60).sum()
-recommendations.append(f"{short_sessions} very short sessions detected, indicating possible distractions.")
+if "session_length" in features.columns:
+    short_sessions = (features["session_length"] < 60).sum()
+    recommendations.append(f"{short_sessions} short sessions detected.")
 
 # ------------------------------------------------
 # 9. HIGH INTENSITY
 # ------------------------------------------------
 
-high_intensity = (features["session_intensity"] > features["session_intensity"].mean()).sum()
-recommendations.append(f"{high_intensity} high intensity sessions detected.")
+if "session_intensity" in features.columns:
+    high_intensity = (features["session_intensity"] > features["session_intensity"].mean()).sum()
+    recommendations.append(f"{high_intensity} high-intensity sessions detected.")
 
 # ------------------------------------------------
 # 10. TOP WEBSITES
 # ------------------------------------------------
 
-top_sites = sessions["domain"].value_counts().head(5)
-recommendations.append("Most visited websites: " + ", ".join(top_sites.index))
+if "domain" in sessions.columns:
+    top_sites = sessions["domain"].value_counts().head(5)
+    recommendations.append("Top sites: " + ", ".join(top_sites.index))
 
 # ------------------------------------------------
 # 11. CATEGORY DOMINANCE
 # ------------------------------------------------
 
-top_category = sessions["category"].value_counts().idxmax()
-recommendations.append(f"Most frequently used category is '{top_category}'.")
+if "category" in sessions.columns:
+    top_category = sessions["category"].value_counts().idxmax()
+    recommendations.append(f"Dominant category: {top_category}")
 
 # ------------------------------------------------
 # 12. SOCIAL LOOP
 # ------------------------------------------------
 
-social_file = os.path.join(DATA_DIR, "social_loops.csv")
+social_file = os.path.join(DATA_DIR, "processed", "social_loops.csv")
 
 if os.path.exists(social_file):
     social = pd.read_csv(social_file)
-    if len(social) > 0:
-        recommendations.append(f"{len(social)} social loop sessions detected. Consider reducing social media usage.")
+    if not social.empty:
+        recommendations.append(f"{len(social)} social loop sessions detected.")
+        recommendations.append("Reduce excessive social media usage.")
 
 # ------------------------------------------------
-# 13. HIGH RAM SITES
+# FINAL GENERAL ADVICE
 # ------------------------------------------------
 
-ram_file = os.path.join(DATA_DIR, "high_ram_sites.csv")
-
-if os.path.exists(ram_file):
-    ram_df = pd.read_csv(ram_file)
-    top_ram_sites = ram_df.iloc[:, 0].head(3).tolist()
-    recommendations.append("High RAM consuming sites include: " + ", ".join(top_ram_sites))
+recommendations.append("Organize browsing into focused sessions for better productivity.")
 
 # ------------------------------------------------
-# 14. SLOW SITES
+# SAVE
 # ------------------------------------------------
 
-slow_file = os.path.join(DATA_DIR, "slow_sites.csv")
-
-if os.path.exists(slow_file):
-    slow_df = pd.read_csv(slow_file)
-    slow_sites = slow_df.iloc[:, 0].head(3).tolist()
-    recommendations.append("Potential slow or heavy sites: " + ", ".join(slow_sites))
-
-# ------------------------------------------------
-# 15. GENERAL PRODUCTIVITY
-# ------------------------------------------------
-
-recommendations.append("Consider organizing browsing sessions into focused time blocks for better productivity.")
-
-# ------------------------------------------------
-# SAVE (UTF-8 FIX 🔥)
-# ------------------------------------------------
+os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 with open(output_file, "w", encoding="utf-8") as f:
     for i, rec in enumerate(recommendations, 1):
@@ -161,12 +184,13 @@ with open(output_file, "w", encoding="utf-8") as f:
 # PRINT OUTPUT
 # ------------------------------------------------
 
-print("\nGenerated Recommendations:\n")
+print("\n📊 GENERATED RECOMMENDATIONS:\n")
 
-for r in recommendations:
-    print("-", r)
+for i, r in enumerate(recommendations, 1):
+    print(f"{i}. {r}")
 
 print("\n================================================")
-print("RECOMMENDATIONS SAVED SUCCESSFULLY")
+print("✅ RECOMMENDATIONS SAVED")
 print("================================================")
-print("Output file:", output_file)
+
+print("📁 Output file:", output_file)

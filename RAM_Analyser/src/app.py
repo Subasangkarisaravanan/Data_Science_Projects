@@ -1,258 +1,240 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import os
+import psutil
+import time
 
-# =====================================
-# PAGE CONFIG
-# =====================================
-st.set_page_config(
-    page_title="RAM Analyzer Dashboard",
-    layout="wide",
-    page_icon="📊"
-)
+from src.config.paths import CLEAN_HISTORY, INSIGHTS_FILE, REPORT_FILE
 
-# =====================================
-# CORRECT BASE PATH (FIXED)
-# =====================================
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+st.set_page_config(page_title="RAM Analyzer", layout="wide")
 
-DATA_PATH = os.path.join(BASE_DIR, "data", "processed", "cleaned_history.csv")
-REPORT_PATH = os.path.join(BASE_DIR, "RAM_Analysis_Report.pdf")
-
-# =====================================
+# =========================================================
 # LOAD DATA
-# =====================================
+# =========================================================
 @st.cache_data
 def load_data():
-    if not os.path.exists(DATA_PATH):
-        st.error("❌ Cleaned data not found. Run clean_history.py first.")
-        st.stop()
+    return pd.read_csv(CLEAN_HISTORY)
 
-    df = pd.read_csv(DATA_PATH)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    return df
+@st.cache_data
+def load_insights():
+    try:
+        with open(INSIGHTS_FILE, "r", encoding="utf-8") as f:
+            return [line.strip() for line in f.readlines() if line.strip()]
+    except:
+        return []
 
-df_original = load_data()
-df = df_original.copy()
+df = load_data()
+insights_list = load_insights()
 
-# =====================================
-# SIDEBAR
-# =====================================
-st.sidebar.title("📊 RAM Analyzer")
-
-# Theme toggle
-theme = st.sidebar.radio("Theme", ["Light", "Dark"])
-
-# Reset button
-if st.sidebar.button("🔄 Reset Filters"):
-    st.session_state.clear()
-    st.rerun()
-
-menu = st.sidebar.radio("Navigation", [
-    "Dashboard",
-    "Category Analysis",
-    "Time Analysis",
-    "AI Insights",
-    "Raw Data"
-])
-
-st.sidebar.divider()
-
-# =====================================
-# FILTERS
-# =====================================
-st.sidebar.subheader("Filters")
-
-search = st.sidebar.text_input("🔍 Search URL")
-date_range = st.sidebar.date_input("📅 Date Range", [])
-
-if search:
-    df = df[df["url"].str.contains(search, case=False, na=False)]
-
-if len(date_range) == 2:
-    start, end = date_range
-    df = df[
-        (df["timestamp"].dt.date >= start) &
-        (df["timestamp"].dt.date <= end)
-    ]
-
-# =====================================
-# EMPTY DATA HANDLING
-# =====================================
-if df.empty:
-    st.warning("⚠️ No matching data found")
-
-    if search:
-        st.write(f"🔍 No results for: `{search}`")
-
-    if len(date_range) == 2:
-        st.write(f"📅 No data between {start} and {end}")
-
-    st.info("👉 Try resetting filters")
-
-    st.stop()
-
-# =====================================
-# DOWNLOAD OPTIONS
-# =====================================
-st.sidebar.subheader("📥 Downloads")
-
-# CSV download
-csv = df.to_csv(index=False).encode("utf-8")
-st.sidebar.download_button(
-    label="Download CSV",
-    data=csv,
-    file_name="cleaned_history.csv",
-    mime="text/csv"
+# =========================================================
+# PREPROCESS
+# =========================================================
+df["domain"] = df["url"].apply(
+    lambda x: str(x).split("/")[2] if "://" in str(x) else str(x)
 )
 
-# PDF download
-if os.path.exists(REPORT_PATH):
-    with open(REPORT_PATH, "rb") as f:
-        st.sidebar.download_button(
-            label="Download Report",
-            data=f,
-            file_name="RAM_Analysis_Report.pdf",
-            mime="application/pdf"
-        )
-else:
-    st.sidebar.info("Report not generated")
-
-# =====================================
-# THEME STYLE
-# =====================================
-if theme == "Dark":
-    st.markdown("""
-        <style>
-        .stApp {
-            background-color: #0e1117;
-            color: white;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-# =====================================
-# AI INSIGHTS FUNCTION
-# =====================================
-def generate_insights(df):
-
+if "timestamp" in df.columns:
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df.dropna(subset=["timestamp"], inplace=True)
+    df["date"] = df["timestamp"].dt.date
     df["hour"] = df["timestamp"].dt.hour
-    peak_hour = df["hour"].value_counts().idxmax()
+    df["day"] = df["timestamp"].dt.day_name()
 
-    if peak_hour < 12:
-        peak_time = f"{peak_hour} AM"
-    elif peak_hour == 12:
-        peak_time = "12 PM"
-    else:
-        peak_time = f"{peak_hour-12} PM"
+# =========================================================
+# SIDEBAR
+# =========================================================
+st.sidebar.title("🔧 Filters")
 
-    top_category = df["category"].value_counts().idxmax()
-    top_website = df["url"].value_counts().idxmax()
-    top_sites = df["url"].value_counts().head(3).index.tolist()
+if "date" in df.columns:
+    start_date = st.sidebar.date_input("Start Date", df["date"].min())
+    end_date = st.sidebar.date_input("End Date", df["date"].max())
+    df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
 
-    heavy_keywords = ["youtube", "netflix", "primevideo", "hotstar"]
-    heavy_sites = set()
+if "category" in df.columns:
+    categories = df["category"].dropna().unique()
+    selected_categories = st.sidebar.multiselect(
+        "Category", categories, default=categories
+    )
+    df = df[df["category"].isin(selected_categories)]
 
-    for url in df["url"]:
-        for k in heavy_keywords:
-            if k in str(url).lower():
-                heavy_sites.add(k)
+search_term = st.sidebar.text_input("🔍 Search URL")
+if search_term:
+    df = df[df["url"].str.contains(search_term, case=False, na=False)]
 
-    slow_sites = df["url"].value_counts()
-    slow_sites = slow_sites[slow_sites > 10].index.tolist()[:3]
+if "domain" in df.columns:
+    top_domains = df["domain"].value_counts().head(20).index.tolist()
+    selected_domains = st.sidebar.multiselect("🌐 Domains", top_domains)
+    if selected_domains:
+        df = df[df["domain"].isin(selected_domains)]
 
-    insights = [
-        f"Peak usage time: {peak_time}",
-        f"Top category: {top_category}",
-        f"Most visited site: {top_website}",
-        f"Top sites: {', '.join(top_sites)}"
-    ]
+# =========================================================
+# HEADER
+# =========================================================
+st.title("🧠 User Behavior Analytics Dashboard")
 
-    if heavy_sites:
-        insights.append(f"High RAM usage sites: {', '.join(heavy_sites)}")
+if len(df) == 0:
+    st.warning("No data after filtering")
+    st.stop()
 
-    if slow_sites:
-        insights.append(f"Heavy/slow sites: {', '.join(slow_sites)}")
+# =========================================================
+# TABS
+# =========================================================
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Overview",
+    "📈 Trends",
+    "🚨 Anomaly",
+    "💡 Insights"
+])
 
-    return insights
+# =========================================================
+# OVERVIEW
+# =========================================================
+with tab1:
 
-# =====================================
-# DASHBOARD
-# =====================================
-if menu == "Dashboard":
-
-    st.title("📊 Dashboard Overview")
-
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric("Total Records", len(df))
-    col2.metric("Top Category", df["category"].value_counts().idxmax())
-    col3.metric("Unique Sites", df["url"].nunique())
+    col2.metric("Categories", df["category"].nunique() if "category" in df.columns else 0)
+    col3.metric("Avg Confidence", round(df["confidence"].mean(), 2) if "confidence" in df.columns else 0)
+    col4.metric("Top Category", df["category"].value_counts().idxmax() if "category" in df.columns else "N/A")
 
-    st.divider()
+    st.subheader("📊 Category Distribution")
+    if "category" in df.columns:
+        st.bar_chart(df["category"].value_counts())
 
-    category_counts = df["category"].value_counts().reset_index()
-    category_counts.columns = ["category", "count"]
+    st.subheader("⏱️ Time Spent per Category")
+    if "time_spent" in df.columns:
+        st.bar_chart(df.groupby("category")["time_spent"].sum())
 
-    fig = px.pie(category_counts, names="category", values="count")
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("🌐 Top Domains")
+    st.bar_chart(df["domain"].value_counts().head(10))
 
-# =====================================
-# CATEGORY ANALYSIS
-# =====================================
-elif menu == "Category Analysis":
+    # ✅ FIXED RAM MONITOR
+    st.subheader("💻 Live RAM Usage")
 
-    st.title("📊 Category Analysis")
+    ram_placeholder = st.empty()
+    ram_data = []
 
-    category_counts = df["category"].value_counts().reset_index()
-    category_counts.columns = ["category", "count"]
+    for i in range(10):
+        ram = psutil.virtual_memory().percent
+        ram_data.append(ram)
 
-    fig = px.bar(category_counts, x="category", y="count", color="category")
-    st.plotly_chart(fig, use_container_width=True)
+        df_ram = pd.DataFrame({
+            "Time": list(range(len(ram_data))),
+            "RAM": ram_data
+        }).set_index("Time")
 
-# =====================================
-# TIME ANALYSIS
-# =====================================
-elif menu == "Time Analysis":
+        ram_placeholder.line_chart(df_ram)
+        time.sleep(0.5)
 
-    st.title("⏰ Time Analysis")
+# =========================================================
+# TRENDS
+# =========================================================
+with tab2:
 
-    df["date"] = df["timestamp"].dt.date
-    time_data = df.groupby(["date", "category"]).size().reset_index(name="count")
+    if "date" in df.columns:
+        st.subheader("📅 Daily Activity")
+        st.line_chart(df.groupby("date").size())
 
-    fig = px.line(time_data, x="date", y="count", color="category")
-    st.plotly_chart(fig, use_container_width=True)
+        st.subheader("📊 Category Trends")
+        trend = df.groupby(["date", "category"]).size().unstack().fillna(0)
+        st.line_chart(trend)
 
-# =====================================
-# AI INSIGHTS
-# =====================================
-elif menu == "AI Insights":
+# =========================================================
+# ANOMALY
+# =========================================================
+with tab3:
 
-    st.title("🤖 Smart Insights")
+    if "confidence" in df.columns:
+        threshold = df["confidence"].mean() - df["confidence"].std()
+        anomalies = df[df["confidence"] < threshold]
 
-    insights = generate_insights(df)
+        st.metric("Anomalies Detected", len(anomalies))
+        st.bar_chart(df["confidence"])
 
-    for ins in insights:
-        st.success(ins)
+        if not anomalies.empty:
+            st.dataframe(anomalies.head(20))
 
-# =====================================
-# RAW DATA
-# =====================================
-elif menu == "Raw Data":
+# =========================================================
+# INSIGHTS
+# =========================================================
+with tab4:
 
-    st.title("📄 Raw Data")
-    st.dataframe(df.head(100))
+    st.header("🧠 Advanced Behavior Insights")
 
-# =====================================
-# STYLE
-# =====================================
-st.markdown("""
-    <style>
-        .stMetric {
-            background-color: #f0f2f6;
-            padding: 10px;
-            border-radius: 10px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+    category_dist = df["category"].value_counts(normalize=True)
+
+    work = category_dist.get("Work", 0)
+    education = category_dist.get("Education", 0)
+    entertainment = category_dist.get("Entertainment", 0)
+    social = category_dist.get("Social Media", 0)
+
+    productivity_score = round((work + education) * 100, 1)
+    st.metric("🎯 Productivity Score", f"{productivity_score}/100")
+
+    # Peak hour safe
+    peak_hour = None
+    if "hour" in df.columns:
+        hourly = df["hour"].value_counts().sort_index()
+        st.line_chart(hourly)
+        peak_hour = hourly.idxmax()
+        st.write(f"Peak Hour: {peak_hour}:00")
+
+    st.subheader("🌐 Top Websites")
+    st.bar_chart(df["domain"].value_counts().head(5))
+
+    # Sessions
+    if "timestamp" in df.columns:
+        df_sorted = df.sort_values("timestamp").copy()
+        df_sorted["session"] = (df_sorted["timestamp"].diff().dt.seconds > 1800).cumsum()
+        session_sizes = df_sorted.groupby("session").size()
+
+        st.write(f"Short Sessions: {(session_sizes < 5).sum()}")
+        st.write(f"Medium Sessions: {((session_sizes >= 5) & (session_sizes < 20)).sum()}")
+        st.write(f"Long Sessions: {(session_sizes >= 20).sum()}")
+
+    # Insights from file
+    st.subheader("📄 Behavior Insights")
+    if insights_list:
+        for i, insight in enumerate(insights_list, 1):
+            st.success(f"{i}. {insight}")
+
+    # Recommendations
+    st.subheader("💡 Smart Recommendations")
+
+    recs = []
+
+    if productivity_score < 40:
+        recs.append("Increase productive activities")
+
+    if entertainment > 0.4:
+        recs.append("Reduce entertainment usage")
+
+    if social > 0.3:
+        recs.append("Limit social media usage")
+
+    if peak_hour is not None:
+        recs.append(f"Use peak hour {peak_hour}:00 effectively")
+
+    for i, r in enumerate(recs, 1):
+        st.success(f"{i}. {r}")
+
+    # Download report
+    st.subheader("📥 Download Report")
+    try:
+        with open(REPORT_FILE, "rb") as file:
+            st.download_button(
+                "Download PDF Report",
+                data=file,
+                file_name="RAM_Report.pdf"
+            )
+    except:
+        st.warning("Report not found")
+
+# =========================================================
+# DOWNLOAD DATA
+# =========================================================
+st.download_button(
+    "⬇️ Download Filtered Data",
+    data=df.to_csv(index=False),
+    file_name="filtered_data.csv"
+)

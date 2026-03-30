@@ -1,144 +1,158 @@
 import pandas as pd
-import os
+from urllib.parse import urlparse, parse_qs
+from transformers import pipeline
+
+from src.config.paths import RAW_HISTORY, CLEAN_HISTORY
 
 print("\n================================================")
-print("STEP 1 : CLEAN HISTORY")
+print("STEP 1 : CLEAN HISTORY WITH AI CATEGORIZATION")
 print("================================================\n")
 
-# -------------------------------------------------
-# Project paths (same logic as Step 0)
-# -------------------------------------------------
+# -------------------------------
+# LOAD DATA
+# -------------------------------
+print(f"Loading file from: {RAW_HISTORY}")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+df = pd.read_csv(RAW_HISTORY)
+df.dropna(subset=["url"], inplace=True)
 
-INPUT_FILE = os.path.join(DATA_DIR, "browsing_history_raw.csv")
-OUTPUT_DIR = os.path.join(DATA_DIR, "processed")
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "cleaned_history.csv")
+# -------------------------------
+# LOAD AI MODEL (Better Model)
+# -------------------------------
+print("Loading AI model...")
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+classifier = pipeline(
+    "zero-shot-classification",
+    model="facebook/bart-large-mnli"   # 🔥 More accurate than distilbert
+)
 
-print("Input file:", INPUT_FILE)
-print("Output file:", OUTPUT_FILE)
+CATEGORIES = [
+    "Entertainment",
+    "Shopping",
+    "Social Media",
+    "Education",
+    "Work",
+    "News",
+    "Technology",
+    "Finance",
+    "Gaming",
+    "Other"
+]
+
+# -------------------------------
+# URL CLEANING
+# -------------------------------
+def extract_domain(url):
+    try:
+        return urlparse(url).netloc.lower()
+    except:
+        return str(url).lower()
 
 
-# -------------------------------------------------
-# CATEGORY FUNCTION
-# -------------------------------------------------
+# -------------------------------
+# 🔥 SEARCH QUERY EXTRACTION
+# -------------------------------
+def extract_search_query(url):
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        params = parse_qs(parsed.query)
 
-def get_category(url):
-    if not isinstance(url, str):
-        return "Other"
+        if "google" in domain or "bing" in domain or "duckduckgo" in domain:
+            return params.get("q", [None])[0]
 
-    url = url.lower()
+    except:
+        pass
 
-    CATEGORY_MAP = {
-        "Entertainment": [
-            "netflix", "hotstar", "primevideo", "amazonprime",
-            "youtube", "instagram", "facebook", "twitter", "snapchat"
-        ],
+    return None
 
-        "Shopping": [
-            "amazon", "flipkart", "meesho", "myntra",
-            "zomato", "swiggy", "ajio"
-        ],
 
-        "Learning": [
-            "coursera", "udemy", "geeksforgeeks",
-            "w3schools", "khanacademy", "edx", "byjus", "guvi"
-        ],
+# -------------------------------
+# RULE-BASED LOGIC (STRONG RULES)
+# -------------------------------
+CATEGORY_MAP = {
+    "Entertainment": ["netflix", "hotstar", "primevideo"],
+    "Shopping": ["amazon", "flipkart", "meesho"],
+    "Social Media": ["facebook", "instagram", "twitter"],
+    "Work": ["linkedin", "outlook"],
+    "Education": ["coursera", "udemy", "geeksforgeeks"],
+    "Technology": ["github", "stackoverflow"],
+    "News": ["bbc", "cnn", "ndtv"],
+}
 
-        "Personal": [
-            "gmail", "mail.google", "yahoo",
-            "outlook", "drive.google",
-            "bank", "netbanking", "upi",
-            "paytm", "gpay", "phonepe"
-        ],
 
-        "Work": [
-            "slack", "teams", "zoom", "meet.google",
-            "jira", "confluence"
-        ],
-
-        "Search": [
-            "google.com/search", "bing.com/search", "yahoo.com/search"
-        ]
-    }
+def rule_based_category(text):
+    text = str(text).lower()
 
     for category, keywords in CATEGORY_MAP.items():
         for keyword in keywords:
-            if keyword in url:
+            if keyword in text:
                 return category
 
-    return "Other"
+    return None
 
 
-# -------------------------------------------------
-# CLEAN FUNCTION
-# -------------------------------------------------
+# -------------------------------
+# AI CATEGORIZATION (WITH CONFIDENCE)
+# -------------------------------
+def ai_categorize(text):
+    try:
+        result = classifier(text, CATEGORIES)
 
-def clean_history():
+        label = result["labels"][0]
+        score = result["scores"][0]
 
-    print("\n📥 Reading raw data...")
+        return label, score
 
-    if not os.path.exists(INPUT_FILE):
-        print("❌ File not found:", INPUT_FILE)
-        return
-
-    df = pd.read_csv(INPUT_FILE)
-
-    print("Total rows:", len(df))
-
-    # ------------------------------
-    # BASIC CLEANING
-    # ------------------------------
-
-    df.dropna(subset=["timestamp", "url"], inplace=True)
-
-    print("Rows after removing nulls:", len(df))
-
-    # Convert timestamp to datetime
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-
-    # Remove duplicates
-    df.drop_duplicates(inplace=True)
-
-    print("Rows after removing duplicates:", len(df))
-
-    # ------------------------------
-    # ADD CATEGORY
-    # ------------------------------
-
-    print("\n🔍 Categorizing URLs...")
-
-    df["category"] = df["url"].apply(get_category)
-
-    # ------------------------------
-    # SORT DATA
-    # ------------------------------
-
-    df = df.sort_values("timestamp")
-
-    # ------------------------------
-    # SAVE CLEANED DATA
-    # ------------------------------
-
-    df.to_csv(OUTPUT_FILE, index=False)
-
-    print("\n================================================")
-    print("CLEANING COMPLETED")
-    print("================================================")
-
-    print("Saved to:", OUTPUT_FILE)
-    print("Final rows:", len(df))
-
-    print("\nCategory distribution:\n")
-    print(df["category"].value_counts())
+    except Exception as e:
+        return "Other", 0.0
 
 
-# -------------------------------------------------
-# MAIN
-# -------------------------------------------------
+# -------------------------------
+# 🔥 FINAL CATEGORY FUNCTION (IMPROVED)
+# -------------------------------
+def get_category(url):
+    domain = extract_domain(url)
 
-if __name__ == "__main__":
-    clean_history()
+    # Step 1: Extract search query
+    query = extract_search_query(url)
+
+    # Step 2: Choose best text
+    if query and len(query.strip()) > 2:
+        text = query.lower()
+    else:
+        text = domain
+
+    # Step 3: Strong rule-based first
+    rule_cat = rule_based_category(text)
+    if rule_cat:
+        return rule_cat, 1.0, "Rule"
+
+    # Step 4: AI classification
+    ai_cat, score = ai_categorize(text)
+
+    # 🔥 Step 5: Confidence threshold (VERY IMPORTANT)
+    if score < 0.4:
+        return "Other", score, "LowConfidence"
+
+    return ai_cat, score, "AI"
+
+
+# -------------------------------
+# APPLY (OPTIMIZED)
+# -------------------------------
+print("Applying categorization...")
+
+results = df["url"].apply(get_category)
+
+df["category"] = results.apply(lambda x: x[0])
+df["confidence"] = results.apply(lambda x: x[1])
+df["method"] = results.apply(lambda x: x[2])
+
+# -------------------------------
+# SAVE
+# -------------------------------
+df.to_csv(CLEAN_HISTORY, index=False)
+
+print(f"\n✅ Cleaned file saved to: {CLEAN_HISTORY}")
+print("================================================\n")
