@@ -7,7 +7,7 @@ import os
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
-from src.config.paths import CLEAN_HISTORY, INSIGHTS_FILE, REPORT_FILE
+from config.paths import CLEAN_HISTORY, INSIGHTS_FILE, REPORT_FILE
 
 st.set_page_config(page_title="RAM Analyzer", layout="wide")
 # =========================================================
